@@ -3,7 +3,7 @@ main();
 
 function main
 %We had good results on 640x360 and 1280x1024 photos
-%with these absolute values
+%with these absolute values. Just saving.
 % HP_filter_size = 50;
 % kernel_size = 11;
 % diag_kernel_size = 31;
@@ -12,72 +12,146 @@ function main
 % median_filter_size = 4;
 
 %Constants percentage to image size
-const_perc.HP_filter_size = 7;
+const_perc.HP_filter_size = 5;
 const_perc.kernel_size = 1.5;
 const_perc.diag_kernel_size = 4.2;
-const_perc.fill_gap = 5;
-const_perc.min_length = 20;
+const_perc.fill_gap = 1;
+const_perc.min_length = 10;
 const_perc.median_filter_size = 0.5;
+const_perc.fix_size = 1;
 
-%VIDEO%
-% file = 'C-d_L-s.webm';
-% reader = VideoReader(file);
-% for i = 1:50
-%     readFrame(reader);
-% end
-% for z = 1:200
-% img_org = readFrame(reader);
-%VIDEO%
+% Action what our code will process:
+% 0 - photo
+% 1 - video
+% 2 - experiment with photo
+action = 2;
+switch action
+    case 0 %Photo
+        img_org = imread('Picture 12.jpg');
+        
+        [const, kernels, kernels_diag, HP_filter] = init_detection(img_org, const_perc);
+        line = perform_detection(img_org, const, kernels, kernels_diag, HP_filter);
+        figure(1); imshow(img_org); hold on;
+        plot_line(line);
+        
+    case 1 %Video
+        reader = VideoReader('C-d_L-s.webm');
+        start_frame = 80;
+        img_org = readFrame(reader);
+        [const, kernels, kernels_diag, HP_filter] = init_detection(img_org, const_perc);
+        %Just read some starting frames
+        for i = 1:start_frame
+            readFrame(reader);
+        end
+        
+        while hasFrame(reader)
+            img_org = readFrame(reader);
+            line = perform_detection(img_org, const, kernels, kernels_diag, HP_filter);
+            figure(1); imshow(img_org); hold on;
+            plot_line(line);
+        end
+        
+    case 2 %Experiment
+        img_org = imread('Picture 18.jpg');
+        figure(1); imshow(img_org); hold on;
+        xi = zeros(1,2); yi = zeros(1,2);
+        for i=1:2
+            [xi(i), yi(i)] = ginput(1);
+            plot(xi(i),yi(i),'x','LineWidth',2,'Color','red');
+        end
+        plot([xi(1) xi(2)],[yi(1) yi(2)],'LineWidth',2,'Color','red');
+        
+        [const, kernels, kernels_diag, HP_filter] = init_detection(img_org, const_perc);
+        line = perform_detection(img_org, const, kernels, kernels_diag, HP_filter);
+        plot_line(line);
+        
+        %Calculate angle error
+        user_angle = points_to_angle(xi, yi);
+        detected_angle = points_to_angle([line.point1(1) line.point2(1)]...
+            ,[line.point1(2) line.point2(2)]);
+        angle_error = abs(user_angle - detected_angle);
+        
+        %Calculate detected points error
+        %Calculate required parameters for line equation
+        m = (yi(2)-yi(1))/(xi(2)-xi(1));
+        b = yi(1) - m*xi(1);
 
-img_org = imread('Picture 17.jpg');
-const = init_constants(const_perc, img_org);
-height = size(img_org,1);
-width = size(img_org,2);
+        %Populate line equation with x's and y's
+        x = 1:size(img_org,2);
+        y = m*x + b;
+        
+        %Calculate distances between one of detected points and
+        %points that user marked
+        distances = zeros(1,size(img_org,2));
+        for i=1:length(y)
+            distances(i) = euclidean_distance(line.point1, [x(i) y(i)]);
+        end
+        point_error = min(distances);
+        
+        fprintf('Angle error: %f\n', angle_error);
+        fprintf('Point error: %f\n', point_error);
+        
+    otherwise
+        error('Unknown action %d', action);
+end
+end
 
+% Perform all the laser line detection algorithm.
+% img_org - RGB image where to detect laser line.
+% const - structure of const values.
+% kernels, kernels_diag - arrays of rotated kernels.
+% HP_filter - Gaussian High Pass filter.
+% ret - detected laser line.
+function ret = perform_detection(img_org, const, kernels, kernels_diag, HP_filter)
+%Apply Fourier Transform to red channel of the image
 img_red = img_org(:,:,1);
 img_fft = fft2(img_red);
 img_fft = fftshift(img_fft);
 
-gauss_filter = Gaussian_HP_filter(height, width, const.HP_filter_size);
-img_filtered = img_fft.*gauss_filter;
+%Apply High Pass Filter to image frequency spectrum
+img_filtered = img_fft.*HP_filter;
 img_filtered = fftshift(img_filtered);
 img_filtered = ifft2(img_filtered);
 img_filtered = uint8(real(img_filtered));
 
-%img_fft = log(abs(img_fft));
-%img_fft = uint8(255 * mat2gray(img_fft));
+%Get all the lines based on rotating kernel
+lines = get_lines(img_filtered, kernels, const.fill_gap, const.min_length, const.median_filter_size);
+
+%Get half of the lines with biggest point count
+intensities = [lines(1:end).intensity];
+[~,ind] = maxk(intensities, ceil(length(lines)*0.5));
+intense_lines = lines(ind);
+
+%Get pixel values of each line
+intense_lines = add_lines_pixels(intense_lines, kernels, kernels_diag, img_org);
+
+%Choose the best line based on particular rules
+line = best_line(intense_lines);
+
+%Place line points in the center of line
+line = fix_line_points(line, const.fix_size);
+
+ret = line;
+end
+
+% Perform initialization of laser line detection
+% img - image to initialize detection to.
+% const_percents - structure of constants percentage.
+% const - structure of const values.
+% kernels, kernels_diag - arrays of rotated kernels.
+% HP_filter - Gaussian High Pass filter.
+function [const, kernels, kernels_diag, HP_filter] = init_detection(img, const_percents)
+const = init_constants(const_percents, img);
 
 kernel = generate_kernel(const.kernel_size);
 kernels = kernel_rotate(kernel, false);
 
-kernel_big = generate_kernel(const.diag_kernel_size);
-kernels_big = kernel_rotate(kernel_big, false);
+kernel_diag = generate_kernel(const.diag_kernel_size);
+kernels_diag = kernel_rotate(kernel_diag, false);
 
-lines = get_lines(img_filtered, kernels, const.fill_gap, const.min_length, const.median_filter_size);
-
-intensities = [lines(1:end).intensity];
-[~,ind] = maxk(intensities, floor(length(lines)*0.5));
-intense_lines = lines(ind);
-
-intense_lines = add_lines_pixels(intense_lines, kernels, kernels_big, img_org);
-
-line = best_line(intense_lines);
-line = fix_line_points(line, 20);
-
-figure(1);
-imshow(img_org); hold on;
-xy = [line.point1; line.point2];
-plot(xy(:,1),xy(:,2),'LineWidth',2,'Color','magenta');
-% Plot beginnings and ends of lines
-plot(xy(1,1),xy(1,2),'x','LineWidth',2,'Color','yellow');
-plot(xy(2,1),xy(2,2),'x','LineWidth',2,'Color','red');
-
-figure(88);
-imshow(mat2gray(kernels(:,:,line.rotation)),'InitialMagnification','fit');
-
-%VIDEO%
-%      end
-%VIDEO%
+height = size(img,1);
+width = size(img,2);
+HP_filter = Gaussian_HP_filter(height, width, const.HP_filter_size);
 end
 
 % Calculate constant values based on image size.
@@ -89,12 +163,14 @@ width = size(img,2);
 frame_size = sqrt(height^2 + width^2);
 frame_size = real(frame_size);
 
+%Simply calculate value from percent given and round up to required number
 ret.HP_filter_size = round(const.HP_filter_size*frame_size/100);
 ret.kernel_size = round_odd(const.kernel_size*frame_size/100);
 ret.diag_kernel_size = round_odd(const.diag_kernel_size*frame_size/100);
 ret.fill_gap = round(const.fill_gap*frame_size/100);
 ret.min_length = round(const.min_length*frame_size/100);
 ret.median_filter_size = round(const.median_filter_size*frame_size/100);
+ret.fix_size = round(const.fix_size*frame_size/100);
 end
 
 % Round to nearest odd integer.
@@ -216,6 +292,7 @@ for i = 1:length(lines)
                 lines(i).Bvals(j,cnt) = img(cy(j)-center_line+ci, cx(j)-center_line+cj,3);
                 lines(i).Xvals(j,cnt) = cx(j)-center_line+cj;
                 lines(i).Yvals(j,cnt) = cy(j)-center_line+ci;
+                %Just for visualization
                 %img_red(cy(j)-center_line+ci, cx(j)-center_line+cj) = 255;
                 cnt = cnt + 1;
             end
@@ -492,18 +569,20 @@ function dist = euclidean_distance(point1, point2)
 dist = sqrt((point1(1) - point2(1))^2 + (point1(2) - point2(2))^2);
 end
 
+% ------------------------UNUSED------------------------ %
 % Returns diagonal kernel based on rotation.
 % kernels - array of rotated kernels.
 % rotation - rotation number in kernels array.
 % ret - diagonal kernel.
-function ret = diagonal_kernel(kernels, rotation)
-kernels_cnt = size(kernels,3);
-diagonal = kernels_cnt/2 + rotation;
-if (diagonal > kernels_cnt)
-    diagonal = diagonal - kernels_cnt;
-end
-ret = kernels(:,:,diagonal);
-end
+% function ret = diagonal_kernel(kernels, rotation)
+% kernels_cnt = size(kernels,3);
+% diagonal = kernels_cnt/2 + rotation;
+% if (diagonal > kernels_cnt)
+%     diagonal = diagonal - kernels_cnt;
+% end
+% ret = kernels(:,:,diagonal);
+% end
+% ------------------------UNUSED------------------------ %
 
 % Returns degrees based on kernel rotation number.
 % kernels - array of rotated kernels.
@@ -532,6 +611,34 @@ degrees_arr = 0:rot_res:180-rot_res;
 [~,degrees_ind] = min(abs(degrees_arr - degrees)); %Nearest kernel
 kernel = kernels(:,:,degrees_ind);
 end
+
+% Plot line on an image.
+% img - image where to plot the line.
+% line - line to plot.
+function plot_line(line)
+xy = [line.point1; line.point2];
+plot(xy(:,1),xy(:,2),'LineWidth',4,'Color','blue');
+%Plot beginnings and ends of lines
+plot(xy(1,1),xy(1,2),'x','LineWidth',2,'Color','blue');
+plot(xy(2,1),xy(2,2),'x','LineWidth',2,'Color','blue');
+end
+
+% Calculate line rotation angle from 2 points.
+% Angle show how many degrees line is rotated from horizontal position.
+% x[2], y[2] - point coordinates.
+% angle - calculated angle.
+function angle = points_to_angle(x, y)
+x1=x(1);
+y1=y(1);
+x2=x(2);
+y2=y(2);
+slope = (y2 - y1) ./ (x2 - x1);
+angle = atand(slope);
+if (angle < 0)
+    angle = 180 + angle;
+end
+end
+
 
 
 
