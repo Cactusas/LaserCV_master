@@ -13,21 +13,20 @@ function main
 
 %Constants percentage to image size
 const_perc.HP_filter_size = 5;
-const_perc.kernel_size = 1.5;
-const_perc.diag_kernel_size = 4.2;
-const_perc.fill_gap = 1;
-const_perc.min_length = 10;
-const_perc.median_filter_size = 0.5;
+const_perc.kernel_size = 1;
+const_perc.diag_kernel_size = 1;
+const_perc.fill_gap = 5;
+const_perc.min_length = 20;
 const_perc.fix_size = 1;
 
 % Action what our code will process:
 % 0 - photo
 % 1 - video
 % 2 - experiment with photo
-action = 2;
+action = 1;
 switch action
     case 0 %Photo
-        img_org = imread('Picture 12.jpg');
+        img_org = imread('HD.jpg');
         
         [const, kernels, kernels_diag, HP_filter] = init_detection(img_org, const_perc);
         line = perform_detection(img_org, const, kernels, kernels_diag, HP_filter);
@@ -35,8 +34,8 @@ switch action
         plot_line(line);
         
     case 1 %Video
-        reader = VideoReader('C-d_L-s.webm');
-        start_frame = 80;
+        reader = VideoReader('C-s_L-d.webm');
+        start_frame = 110;
         img_org = readFrame(reader);
         [const, kernels, kernels_diag, HP_filter] = init_detection(img_org, const_perc);
         %Just read some starting frames
@@ -52,7 +51,7 @@ switch action
         end
         
     case 2 %Experiment
-        img_org = imread('Picture 18.jpg');
+        img_org = imread('HD.jpg');
         figure(1); imshow(img_org); hold on;
         xi = zeros(1,2); yi = zeros(1,2);
         for i=1:2
@@ -103,6 +102,7 @@ end
 % HP_filter - Gaussian High Pass filter.
 % ret - detected laser line.
 function ret = perform_detection(img_org, const, kernels, kernels_diag, HP_filter)
+fprintf('Detecting...\n');
 %Apply Fourier Transform to red channel of the image
 img_red = img_org(:,:,1);
 img_fft = fft2(img_red);
@@ -115,7 +115,7 @@ img_filtered = ifft2(img_filtered);
 img_filtered = uint8(real(img_filtered));
 
 %Get all the lines based on rotating kernel
-lines = get_lines(img_filtered, kernels, const.fill_gap, const.min_length, const.median_filter_size);
+lines = get_lines(img_filtered, kernels, const.fill_gap, const.min_length);
 
 %Get half of the lines with biggest point count
 intensities = [lines(1:end).intensity];
@@ -123,15 +123,30 @@ intensities = [lines(1:end).intensity];
 intense_lines = lines(ind);
 
 %Get pixel values of each line
-intense_lines = add_lines_pixels(intense_lines, kernels, kernels_diag, img_org);
+intense_lines = add_lines_pixels(intense_lines, kernels_diag, img_org);
+%Fix line points and clean pixels then again add pixels
+for i=1:length(intense_lines)
+    intense_lines(i) = fix_line_points(intense_lines(i), const.fix_size);
+    intense_lines(i).Rvals = [];
+    intense_lines(i).Gvals = [];
+    intense_lines(i).Bvals = [];
+    intense_lines(i).Xvals = [];
+    intense_lines(i).Yvals = [];
+end
+intense_lines = add_lines_pixels(intense_lines, kernels_diag, img_org);
+fprintf('Possible lines found: %d\n', length(intense_lines));
 
 %Choose the best line based on particular rules
 line = best_line(intense_lines);
 
 %Place line points in the center of line
 line = fix_line_points(line, const.fix_size);
-
+fprintf('Line detected at points: [%d %d] [%d %d] ', ...
+    line.point1(1), line.point1(2), line.point2(1), line.point2(2));
+fprintf('with angle %f\n', points_to_angle([line.point1(1), line.point2(1)],...
+    [line.point1(2), line.point2(2)]))
 ret = line;
+fprintf('-------------------------------------------------------\n');
 end
 
 % Perform initialization of laser line detection
@@ -141,10 +156,19 @@ end
 % kernels, kernels_diag - arrays of rotated kernels.
 % HP_filter - Gaussian High Pass filter.
 function [const, kernels, kernels_diag, HP_filter] = init_detection(img, const_percents)
+fprintf('Starting detector initialization...\n');
 const = init_constants(const_percents, img);
 
 kernel = generate_kernel(const.kernel_size);
 kernels = kernel_rotate(kernel, false);
+kernels_cnt = size(kernels,3);
+fprintf('Rotated kernels count %d ', kernels_cnt);
+if (kernels_cnt > 45)
+    n = round(kernels_cnt/45);
+    kernels = kernels(:,:,n:n:end);
+    fprintf('was reduced to %d', size(kernels,3));
+end
+fprintf('\n');
 
 kernel_diag = generate_kernel(const.diag_kernel_size);
 kernels_diag = kernel_rotate(kernel_diag, false);
@@ -152,25 +176,37 @@ kernels_diag = kernel_rotate(kernel_diag, false);
 height = size(img,1);
 width = size(img,2);
 HP_filter = Gaussian_HP_filter(height, width, const.HP_filter_size);
+fprintf('Initialization DONE\n');
+fprintf('-------------------------------------------------------\n');
 end
 
 % Calculate constant values based on image size.
 % const - structure constant percentages by image size.
 % img - image to calculate constants from.
 function ret = init_constants(const, img)
+
 height = size(img,1);
 width = size(img,2);
 frame_size = sqrt(height^2 + width^2);
 frame_size = real(frame_size);
 
+fprintf('Frame given with size %dx%d\n', width, height);
+
+fprintf('Initializing detector constants with sizes: \n');
 %Simply calculate value from percent given and round up to required number
 ret.HP_filter_size = round(const.HP_filter_size*frame_size/100);
 ret.kernel_size = round_odd(const.kernel_size*frame_size/100);
 ret.diag_kernel_size = round_odd(const.diag_kernel_size*frame_size/100);
 ret.fill_gap = round(const.fill_gap*frame_size/100);
 ret.min_length = round(const.min_length*frame_size/100);
-ret.median_filter_size = round(const.median_filter_size*frame_size/100);
 ret.fix_size = round(const.fix_size*frame_size/100);
+
+fprintf('High Pass filter size: %d\n', ret.HP_filter_size);
+fprintf('Kernel size: %d\n', ret.kernel_size);
+fprintf('Diagonal kernel size: %d\n', ret.diag_kernel_size);
+fprintf('Hough Transform fill gap: %d\n', ret.fill_gap);
+fprintf('Hough Transform minimum line length: %d\n', ret.min_length);
+fprintf('Fixing line points area size: %d\n', ret.fix_size);
 end
 
 % Round to nearest odd integer.
@@ -232,12 +268,10 @@ for i = 1:length(lines)
         rise_avg = risingR;
         fall_avg = fallingR;
     else
-        rise_avg = (risingR-((risingG + risingB)/2))*2;
-        fall_avg = (fallingR-((fallingG + fallingB)/2))*2;
+        rise_avg = (risingR-((risingG + risingB)/2));
+        fall_avg = (fallingR-((fallingG + fallingB)/2));
     end
-%     if (rise_avg <= 0 || fall_avg <= 0)
-%        continue; 
-%     end
+
     center_avg = (centerR + centerG + centerB)/3;
     coef = rise_avg + fall_avg + center_avg;
 
@@ -246,25 +280,29 @@ for i = 1:length(lines)
         best_line_ind = i;
     end
 end
+
 ret = lines(best_line_ind);
 end
 
 % Add pixel values of lines to line structure array.
 % lines - lines structure array.
-% kernels - array of rotated kernels.
 % kernels_diag - array of another (bigger) rotated kernels, used for
 %                extracting pixel values diagonally to line.
 % img - RGB image to extract pixel values from.
 % ret - structure of lines with pixel values.
-function ret = add_lines_pixels(lines, kernels, kernels_diag, img)
+function ret = add_lines_pixels(lines, kernels_diag, img)
 height = size(img,1);
 width = size(img,2);
 for i = 1:length(lines)
+    %lines(i) = fix_line_points(lines(i), 10);
     x = [lines(i).point1(1) lines(i).point2(1)];
     y = [lines(i).point1(2) lines(i).point2(2)];
     
     %Get diagonal kernel
-    diagonal_degrees = rotation_to_degrees(kernels, lines(i).rotation) + 90;
+    %diagonal_degrees = rotation_to_degrees(kernels, lines(i).rotation) + 90;
+    %diagonal = degrees_to_kernel(kernels_diag, diagonal_degrees);
+    
+    diagonal_degrees = points_to_angle(x,y) + 90;
     diagonal = degrees_to_kernel(kernels_diag, diagonal_degrees);
     
     %Get line that will be used to extract pixel values.
@@ -293,11 +331,12 @@ for i = 1:length(lines)
                 lines(i).Xvals(j,cnt) = cx(j)-center_line+cj;
                 lines(i).Yvals(j,cnt) = cy(j)-center_line+ci;
                 %Just for visualization
-                %img_red(cy(j)-center_line+ci, cx(j)-center_line+cj) = 255;
+                %img(cy(j)-center_line+ci, cx(j)-center_line+cj) = 255;
                 cnt = cnt + 1;
             end
         end
     end
+    %imshow(img);
 end
 ret = lines;
 end
@@ -305,7 +344,8 @@ end
 % Get all the lines from image based on rotating kernel.
 % img - image to search lines from.
 % kernels - rotated kernels array.
-function ret = get_lines(img, kernels, fill_gap, min_length, median_size)
+% fill_gap, min_length - Hough Transform corresponding parameters.
+function ret = get_lines(img, kernels, fill_gap, min_length)
 %Structure initialization
 lines(1).point1 = [0 0];
 lines(1).point2 = [0 0];
@@ -319,21 +359,27 @@ for i=1:size(kernels,3)
     
     %Apply kernel
     filtered = imfilter(img, kernel);
+    %filtered = imgaussfilt(filtered,[2 2]);
     
     %Top-hat
     SE = kernel_to_strel(kernel);
     top_hat = imtophat(filtered, SE);
-    top_hat = imadjust(top_hat);
-    
+    top_hat = imadjust(top_hat);   
+
     %Threshold and median filter
     img_bin = top_hat > 127;
-    img_bin = medfilt2(img_bin,[median_size median_size]);
+    img_bin = medfilt2(img_bin,[2 2]);
     
     %Remove white points from edges of the frame.
     img_bin(:,1:frame_size)=0;
     img_bin(:,width-frame_size:end)=0;
     img_bin(1:frame_size,:)=0;
     img_bin(height-frame_size:end,:)=0;
+    
+    %figure(1);
+    %imshow(img_bin);
+    %figure(2);
+    %imshow(mat2gray(kernel),'InitialMagnification','fit');
     
     %---------Save lines and kernel rotation---------
     hough_lines = perform_hough(img_bin, fill_gap, min_length);
@@ -638,13 +684,3 @@ if (angle < 0)
     angle = 180 + angle;
 end
 end
-
-
-
-
-
-
-
-
-
-
