@@ -12,9 +12,9 @@ function main
 % median_filter_size = 4;
 
 %Constants percentage to image size
-const_perc.HP_filter_size = 5;
+const_perc.HP_filter_size = 10;
 const_perc.kernel_size = 1;
-const_perc.diag_kernel_size = 1;
+const_perc.diag_kernel_size = 0.75;
 const_perc.fill_gap = 5;
 const_perc.min_length = 20;
 const_perc.fix_size = 1;
@@ -26,7 +26,7 @@ const_perc.fix_size = 1;
 action = 1;
 switch action
     case 0 %Photo
-        img_org = imread('HD.jpg');
+        img_org = imread('Picture 16.jpg');
         
         [const, kernels, kernels_diag, HP_filter] = init_detection(img_org, const_perc);
         line = perform_detection(img_org, const, kernels, kernels_diag, HP_filter);
@@ -51,7 +51,7 @@ switch action
         end
         
     case 2 %Experiment
-        img_org = imread('HD.jpg');
+        img_org = imread('Picture HD.jpg');
         figure(1); imshow(img_org); hold on;
         xi = zeros(1,2); yi = zeros(1,2);
         for i=1:2
@@ -102,6 +102,7 @@ end
 % HP_filter - Gaussian High Pass filter.
 % ret - detected laser line.
 function ret = perform_detection(img_org, const, kernels, kernels_diag, HP_filter)
+%ret = best_line([2 2 2 2 2 2 2 2 2]);%ASDDASDASDASDDDASDASDAS
 fprintf('Detecting...\n');
 %Apply Fourier Transform to red channel of the image
 img_red = img_org(:,:,1);
@@ -109,13 +110,17 @@ img_fft = fft2(img_red);
 img_fft = fftshift(img_fft);
 
 %Apply High Pass Filter to image frequency spectrum
+fprintf('Filtering frequencies... ');
 img_filtered = img_fft.*HP_filter;
 img_filtered = fftshift(img_filtered);
 img_filtered = ifft2(img_filtered);
 img_filtered = uint8(real(img_filtered));
+fprintf('Done\n');
 
 %Get all the lines based on rotating kernel
+fprintf('Detecting lines on kernel rotation... ');
 lines = get_lines(img_filtered, kernels, const.fill_gap, const.min_length);
+fprintf('Done\n');
 
 %Get half of the lines with biggest point count
 intensities = [lines(1:end).intensity];
@@ -123,7 +128,9 @@ intensities = [lines(1:end).intensity];
 intense_lines = lines(ind);
 
 %Get pixel values of each line
-intense_lines = add_lines_pixels(intense_lines, kernels_diag, img_org);
+fprintf('Acquiring pixels of lines for fixing points... ');
+intense_lines = add_lines_pixels(intense_lines, kernels_diag, img_org, const.fix_size);
+fprintf('Done\n');
 %Fix line points and clean pixels then again add pixels
 for i=1:length(intense_lines)
     intense_lines(i) = fix_line_points(intense_lines(i), const.fix_size);
@@ -133,11 +140,15 @@ for i=1:length(intense_lines)
     intense_lines(i).Xvals = [];
     intense_lines(i).Yvals = [];
 end
-intense_lines = add_lines_pixels(intense_lines, kernels_diag, img_org);
+fprintf('Reacquiring pixels of lines... ');
+intense_lines = add_lines_pixels(intense_lines, kernels_diag, img_org, 0);
+fprintf('Done\n');
 fprintf('Possible lines found: %d\n', length(intense_lines));
 
 %Choose the best line based on particular rules
+fprintf('Searching for laser line... ');
 line = best_line(intense_lines);
+fprintf('Done\n');
 
 %Place line points in the center of line
 line = fix_line_points(line, const.fix_size);
@@ -176,7 +187,7 @@ kernels_diag = kernel_rotate(kernel_diag, false);
 height = size(img,1);
 width = size(img,2);
 HP_filter = Gaussian_HP_filter(height, width, const.HP_filter_size);
-fprintf('Initialization DONE\n');
+fprintf('Initialization done\n');
 fprintf('-------------------------------------------------------\n');
 end
 
@@ -248,39 +259,90 @@ for i = 1:length(lines)
     Gvals = lines(i).Gvals;
     Bvals = lines(i).Bvals;
 
+
+%         ab=[];
+%         ab(:,:,1)= uint8(Rvals);
+%         ab(:,:,2)= uint8(Gvals);
+%         ab(:,:,3)= uint8(Bvals);
+%         imshow(uint8(ab));
+    
+    
     %Divide line into 3 parts - rise/center/fall
-    edge_len = fix(size(Rvals,2)/3);
-    center_len = mod(size(Rvals,2),3);
+    %     edge_len = fix(size(Rvals,2)/3);
+    %     center_len = mod(size(Rvals,2),3);
+    %
+    %     risingR = mean(Rvals(:,1:edge_len));
+    %     centerR = mean(Rvals(:,edge_len+1:edge_len+edge_len+center_len));
+    %     fallingR = mean(Rvals(:,edge_len+edge_len+center_len+1:end));
+    %
+    %     risingG = mean(Gvals(1:edge_len));
+    %     centerG = mean(Gvals(edge_len+1:edge_len+edge_len+center_len));
+    %     fallingG = mean(Gvals(edge_len+edge_len+center_len+1:end));
+    %
+    %     risingB = mean(Bvals(1:edge_len));
+    %     centerB = mean(Bvals(edge_len+1:edge_len+edge_len+center_len));
+    %     fallingB = mean(Bvals(edge_len+edge_len+center_len+1:end));
+    %Divide line into 3 parts - rise/center/fall
     
-    risingR = mean(Rvals(1:edge_len));
-    centerR = mean(Rvals(edge_len+1:edge_len+edge_len+center_len));
-    fallingR = mean(Rvals(edge_len+edge_len+center_len+1:end));
+%     Rvals = 1:11;
+%     Gvals = 1:11;
+%     Bvals = 1:11;
     
-    risingG = mean(Gvals(1:edge_len));
-    centerG = mean(Gvals(edge_len+1:edge_len+edge_len+center_len));
-    fallingG = mean(Gvals(edge_len+edge_len+center_len+1:end));
-    
-    risingB = mean(Bvals(1:edge_len));
-    centerB = mean(Bvals(edge_len+1:edge_len+edge_len+center_len));
-    fallingB = mean(Bvals(edge_len+edge_len+center_len+1:end));
-    
-    if (risingG + risingB == 0)
-        rise_avg = risingR;
-        fall_avg = fallingR;
-    else
-        rise_avg = (risingR-((risingG + risingB)/2));
-        fall_avg = (fallingR-((fallingG + fallingB)/2));
+    width = size(Rvals,2);
+    sides = round(width/3);
+    center = width - sides*2;
+    if (center > sides)
+       center = center - 2 ;
+       sides = sides + 1;
     end
-
-    center_avg = (centerR + centerG + centerB)/3;
-    coef = rise_avg + fall_avg + center_avg;
-
-    if (coef > max_coef)
-        max_coef = coef;
-        best_line_ind = i;
-    end
+    
+    Cvals = [];
+    Cvals(:,:,1)= uint8(Rvals);
+    Cvals(:,:,2)= uint8(Gvals);
+    Cvals(:,:,3)= uint8(Bvals);
+    Cvals= rgb2gray(Cvals);
+    
+    risingC = mean(diff(Cvals(1:sides),1,2));
+    centerC = mean(Cvals(sides+1:sides+center));
+    fallingC = mean(diff(Cvals(sides+center+1:end),1,2));
+   
+    risingR = mean(Rvals(:,1:sides));
+    centerR = mean(Rvals(sides+1:sides+center));
+    fallingR = mean(Rvals(sides+center+1:end));
+    
+    risingG = mean(Gvals(1:sides));
+    centerG = mean(Gvals(sides+1:sides+center));
+    fallingG = mean(Gvals(sides+center+1:end));
+    
+    risingB = mean(Bvals(1:sides));
+    centerB = mean(Bvals(sides+1:sides+center));
+    fallingB = mean(Bvals(sides+center+1:end));
+%      i
+    %if (risingC > 0 && fallingC < 0)
+        if (risingG + risingB == 0)
+            rise_avg = risingR;
+            fall_avg = fallingR;
+        else
+            rise_avg = (risingR-((risingG + risingB)/2))*2;
+            fall_avg = (fallingR-((fallingG + fallingB)/2))*2;
+        end
+        
+        center_avg = (centerR + centerG + centerB)/3;
+        coef = (rise_avg + fall_avg + center_avg);
+        
+        %coef = centerR;
+        if (coef > max_coef)
+            max_coef = coef;
+            best_line_ind = i;
+        end
+        
+    %end
+    
 end
 
+
+%abs(rise_avg-fall_avg)
+%max_coef
 ret = lines(best_line_ind);
 end
 
@@ -290,7 +352,7 @@ end
 %                extracting pixel values diagonally to line.
 % img - RGB image to extract pixel values from.
 % ret - structure of lines with pixel values.
-function ret = add_lines_pixels(lines, kernels_diag, img)
+function ret = add_lines_pixels(lines, kernels_diag, img, fix)
 height = size(img,1);
 width = size(img,2);
 for i = 1:length(lines)
@@ -312,7 +374,15 @@ for i = 1:length(lines)
     [cx, cy, ~] = improfile(img, x, y);
     cx = round(cx);
     cy = round(cy);
-    for j = 1:length(cx)
+    
+    if (fix ~= 0)
+        %Acquire only pixels required for line point fix
+        k = [1:fix length(cx)-fix:length(cx)];
+    else
+        k = 1:length(cx);
+    end
+    
+    for j=k
         cnt = 1;
         for ci = 1:size(test_line, 1)
             for cj = 1:size(test_line, 2)
