@@ -1,0 +1,14 @@
+A low cost 3D laser-line scanner for facial acquisition 
+https://essay.utwente.nl/72064/1/Bijman_BA_EEMCS.pdf
+
+A novel laser vision sensor for weld line detection on-wall climbing robot
+https://www.sciencedirect.com/science/article/pii/S0030399214000061
+
+Simple Robust Road Lane Detection Algorithm
+https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=6869550
+
+The Laser Line Detection for Autonomous Mapping Based On Color Segmentation
+https://publications.waset.org/9996622/the-laser-line-detection-for-autonomous-mapping-based-on-color-segmentation
+
+Fast obstacle distance estimation using laser line imaging technique for smart wheelchair
+https://www.researchgate.net/profile/Muhammad-Fauzi-6/publication/309114385_Fast_obstacle_distance_estimation_using_laser_line_imaging_technique_for_smart_wheelchair/links/59e789e5458515c3630f92de/Fast-obstacle-distance-estimation-using-laser-line-imaging-technique-for-smart-wheelchair.pdf
