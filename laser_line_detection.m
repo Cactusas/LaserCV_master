@@ -23,10 +23,10 @@ const_perc.fix_size = 1;
 % 0 - photo
 % 1 - video
 % 2 - experiment with photo
-action = 1;
+action = 0;
 switch action
     case 0 %Photo
-        img_org = imread('Picture 16.jpg');
+        img_org = imread('Picture 18.jpg');
         
         [const, kernels, kernels_diag, HP_filter] = init_detection(img_org, const_perc);
         line = perform_detection(img_org, const, kernels, kernels_diag, HP_filter);
@@ -430,15 +430,20 @@ for i=1:size(kernels,3)
     %Apply kernel
     filtered = imfilter(img, kernel);
     %filtered = imgaussfilt(filtered,[2 2]);
-    
+    %imshow(filtered);
     %Top-hat
     SE = kernel_to_strel(kernel);
-    top_hat = imtophat(filtered, SE);
-    top_hat = imadjust(top_hat);   
+    
+    top_hat = imadjust(filtered);   
+    %imshow(top_hat);
 
     %Threshold and median filter
     img_bin = top_hat > 127;
+    %imshow(img_bin);
     img_bin = medfilt2(img_bin,[2 2]);
+    %imshow(img_bin);
+    img_bin = imtophat(img_bin, SE);
+    %imshow(img_bin);
     
     %Remove white points from edges of the frame.
     img_bin(:,1:frame_size)=0;
