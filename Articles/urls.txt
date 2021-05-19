@@ -12,3 +12,6 @@ https://publications.waset.org/9996622/the-laser-line-detection-for-autonomous-m
 
 Fast obstacle distance estimation using laser line imaging technique for smart wheelchair
 https://www.researchgate.net/profile/Muhammad-Fauzi-6/publication/309114385_Fast_obstacle_distance_estimation_using_laser_line_imaging_technique_for_smart_wheelchair/links/59e789e5458515c3630f92de/Fast-obstacle-distance-estimation-using-laser-line-imaging-technique-for-smart-wheelchair.pdf
+
+High Pass Filters
+https://d1wqtxts1xzle7.cloudfront.net/58975350/BPJ_Vol_7_No2_P_707-71320190420-97114-lyqir5.pdf?1555824567=&response-content-disposition=inline%3B+filename%3DImage_Sharpening_By_Gaussian_And_Butterw.pdf&Expires=1619644872&Signature=asruITouUEKeXPjjvJ3DjMIr7qTUCN2RW8cis-BeSnD~HKz~TijAhO9ckdCzGoXgqP59azmA5KRbwJ4h0GXrRC1YCXg3h0vLH3ZR8q8DxHGsjAER6OQqV913z1iao3-WRbUyNHXx164Tkw-tCT-DIUP2yjyt4KC0ahlmZ6Zzq0oTF~BrUwvWW8g4WdExc0GZBzzeSxDX26CskqJfkxtzfefPD4CBNbLSasmpOAbbrh2IyHbT5j~tzpqUrNITFOn7VKjcOmT5zgJ7sCoj-JV-x~nAeR0YmxzaCqRlezKWlYjFRaxwHb6T0BNnlxxQY91EFC44KcXT2vA7qBmKM-vf4g__&Key-Pair-Id=APKAJLOHF5GGSLRBV4ZA
