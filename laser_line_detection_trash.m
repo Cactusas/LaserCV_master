@@ -51,7 +51,7 @@ switch action
         end
         
     case 2 %Experiment
-        img_org = imread('C:\Users\ivano\Desktop\Magistrinis\LaserCV_master\c210_640x480\Picture 12.jpg');
+        img_org = imread('C:\Users\ivano\Desktop\Magistrinis\LaserCV_master\Picture HD.jpg');
         figure(1); imshow(img_org); hold on;
         xi = zeros(1,2); yi = zeros(1,2);
         for i=1:2
@@ -134,9 +134,9 @@ intensities = [lines(1:end).intensity];
 intense_lines = lines(ind);
 
 %Get pixel values of each line
-fprintf('Acquiring pixels of lines for fixing points... ');
+%fprintf('Acquiring pixels of lines for fixing points... ');
 intense_lines = add_lines_pixels(intense_lines, kernels_diag, img_org, const.fix_size);
-fprintf('Done\n');
+%fprintf('Done\n');
 %Fix line points and clean pixels then again add pixels
 for i=1:length(intense_lines)
     intense_lines(i) = fix_line_points(intense_lines(i), const.fix_size);
@@ -146,7 +146,7 @@ for i=1:length(intense_lines)
     intense_lines(i).Xvals = [];
     intense_lines(i).Yvals = [];
 end
-fprintf('Reacquiring pixels of lines... ');
+fprintf('Acquiring pixels of lines... ');
 intense_lines = add_lines_pixels(intense_lines, kernels_diag, img_org, 0);
 fprintf('Done\n');
 fprintf('Possible lines found: %d\n', length(intense_lines));
@@ -221,9 +221,9 @@ ret.fix_size = round(const.fix_size*frame_size/100);
 fprintf('High Pass filter size: %d\n', ret.HP_filter_size);
 fprintf('Kernel size: %d\n', ret.kernel_size);
 fprintf('Diagonal kernel size: %d\n', ret.diag_kernel_size);
-fprintf('Hough Transform fill gap: %d\n', ret.fill_gap);
+fprintf('Hough Transform discontinuance length: %d\n', ret.fill_gap);
 fprintf('Hough Transform minimum line length: %d\n', ret.min_length);
-fprintf('Fixing line points area size: %d\n', ret.fix_size);
+fprintf('Line center searching area size: %d\n', ret.fix_size);
 end
 
 % Round to nearest odd integer.
