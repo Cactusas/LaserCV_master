@@ -14,7 +14,7 @@ function main
 %Constants percentage to image size
 const_perc.HP_filter_size = 10;
 const_perc.kernel_size = 1;
-const_perc.diag_kernel_size = 0.7;
+const_perc.diag_kernel_size = 0.75;
 const_perc.fill_gap = 5;
 const_perc.min_length = 20;
 const_perc.fix_size = 1;
@@ -23,7 +23,7 @@ const_perc.fix_size = 1;
 % 0 - photo
 % 1 - video
 % 2 - experiment with photo
-action = 0;
+action = 2;
 switch action
     case 0 %Photo
         img_org = imread('C:\Users\ivano\Desktop\Magistrinis\LaserCV_master\320x180\Picture 33.jpg');
@@ -51,18 +51,20 @@ switch action
         end
         
     case 2 %Experiment
-        img_org = imread('Picture HD.jpg');
+        img_org = imread('C:\Users\ivano\Desktop\Magistrinis\LaserCV_master\c210_640x480\Picture 12.jpg');
         figure(1); imshow(img_org); hold on;
         xi = zeros(1,2); yi = zeros(1,2);
         for i=1:2
             [xi(i), yi(i)] = ginput(1);
-            plot(xi(i),yi(i),'x','LineWidth',2,'Color','red');
+            plot(xi(i),yi(i),'Marker', 'x','MarkerSize',20,'LineWidth',2,'Color','magenta');
         end
-        plot([xi(1) xi(2)],[yi(1) yi(2)],'LineWidth',2,'Color','red');
+        plot([xi(1) xi(2)],[yi(1) yi(2)],'LineWidth',10,'Color','red');
         
+        tic;
         [const, kernels, kernels_diag, HP_filter] = init_detection(img_org, const_perc);
         line = perform_detection(img_org, const, kernels, kernels_diag, HP_filter);
         plot_line(line);
+        elapsed_time = toc;
         
         %Calculate angle error
         user_angle = points_to_angle(xi, yi);
@@ -87,8 +89,12 @@ switch action
         end
         point_error = min(distances);
         
+        test = [angle_error point_error elapsed_time];
+        
         fprintf('Angle error: %f\n', angle_error);
         fprintf('Point error: %f\n', point_error);
+        fprintf('Time elapsed: %f\n', elapsed_time);
+        
         
     otherwise
         error('Unknown action %d', action);
