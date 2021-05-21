@@ -16,14 +16,14 @@ const_perc.HP_filter_size = 10;
 const_perc.kernel_size = 5;
 const_perc.diag_kernel_size = 0.75;
 const_perc.fill_gap = 5;
-const_perc.min_length = 30;
+const_perc.min_length = 40;
 const_perc.fix_size = 1;
 
 % Action what our code will process:
 % 0 - photo
 % 1 - video
 % 2 - experiment with photo
-action = 0;
+action = 2;
 switch action
     case 0 %Photo
         %img_org = imread('C:\Users\ivano\Desktop\Magistrinis\LaserCV_master\c210_640x480\fails\Picture 1.jpg');
@@ -52,7 +52,8 @@ switch action
         end
         
     case 2 %Experiment
-        img_org = imread('C:\Users\ivano\Desktop\Magistrinis\LaserCV_master\Picture HD.jpg');
+        %img_org = imread('C:\Users\ivano\Desktop\Magistrinis\LaserCV_master\Picture HD.jpg');
+        img_org = imread('Picture 31.jpg');
         figure(1); imshow(img_org); hold on;
         xi = zeros(1,2); yi = zeros(1,2);
         for i=1:2
