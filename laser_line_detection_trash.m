@@ -13,20 +13,21 @@ function main
 
 %Constants percentage to image size
 const_perc.HP_filter_size = 10;
-const_perc.kernel_size = 1;
+const_perc.kernel_size = 5;
 const_perc.diag_kernel_size = 0.75;
 const_perc.fill_gap = 5;
-const_perc.min_length = 20;
+const_perc.min_length = 30;
 const_perc.fix_size = 1;
 
 % Action what our code will process:
 % 0 - photo
 % 1 - video
 % 2 - experiment with photo
-action = 2;
+action = 0;
 switch action
     case 0 %Photo
-        img_org = imread('C:\Users\ivano\Desktop\Magistrinis\LaserCV_master\320x180\Picture 33.jpg');
+        %img_org = imread('C:\Users\ivano\Desktop\Magistrinis\LaserCV_master\c210_640x480\fails\Picture 1.jpg');
+        img_org = imread('Picture 31.jpg');
         
         [const, kernels, kernels_diag, HP_filter] = init_detection(img_org, const_perc);
         line = perform_detection(img_org, const, kernels, kernels_diag, HP_filter);
